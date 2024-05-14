@@ -7,6 +7,7 @@
 #' @param in_file A tab-delimited classification table output by QIIME2
 #' @return A phyloseq tax_table object
 #' @details This function expects up to 7 ranks (Domain, Phylum, Class, Order, Family, Genus and Species) but determines the number actually in the file.
+#' @details Depending on how the QIIME2 classifier is built, the ranks in the Taxon field of the classification result may be separated by a semicolon or by a semicolon plus a space. This function correctly parses the Taxon field in both cases.
 #' @references Bolyen E, Rideout JR, Dillon MR, Bokulich NA, *et al*. 2019. Reproducible, interactive, scalable and extensible microbiome data science using QIIME 2. Nat Biotechnol 37:852-857.
 #' @export
 #' @importFrom dplyr select mutate pull
@@ -16,7 +17,12 @@
 #' @importFrom phyloseq tax_table
 #' @importFrom utils read.table
 #' @examples
+#' ## Example with ranks in Taxon field separated by semicolon plus a space.
 #' taxonomy_file <- system.file("extdata", "qiime2_table.tsv", package = "speedytax")
+#' example_tax_table <- import_qiime2_tax_table(in_file = taxonomy_file)
+#' example_tax_table
+#' ## Example with ranks in Taxon field separated by semicolon only.
+#' taxonomy_file <- system.file("extdata", "qiime2_table_a.tsv", package = "speedytax")
 #' example_tax_table <- import_qiime2_tax_table(in_file = taxonomy_file)
 #' example_tax_table
 
@@ -36,12 +42,13 @@ import_qiime2_tax_table <- function(in_file) {
   ranks <- c("d", "p", "c", "o", "f", "g", "s")
 
   suppressWarnings(sorted_data <-  temp |>
-    tibble::as_tibble() |>
-    dplyr::select(-Confidence) |>
-    dplyr::mutate(Taxon = str_replace_all(Taxon, "__", "_")) |>
-    tidyr::separate(col = Taxon, sep = "; ", into = ranks[1:n_ranks],
-                    fill = "right") |>
-    as.matrix())
+                     tibble::as_tibble() |>
+                     dplyr::select(-Confidence) |>
+                     dplyr::mutate(Taxon = str_replace_all(Taxon, "; ", ";"),
+                                   Taxon = str_replace_all(Taxon, "__", "_")) |>
+                     tidyr::separate(col = Taxon, sep = ";", into = ranks[1:n_ranks],
+                                     fill = "right") |>
+                     as.matrix())
 
   rownames(sorted_data) <- sorted_data[, 1]
   sorted_data <- sorted_data[, -1]
